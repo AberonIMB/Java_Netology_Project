@@ -1,154 +1,96 @@
 package ru.netology.kriger;
 
+import ru.netology.kriger.services.*;
+
 import java.util.Arrays;
-import java.util.Scanner;
 
 
 public class Main {
-
-    public final static int MAX_OPERATIONS = 1_000;
-    public final static int MAX_CUSTOMERS = 100;
-    private final static Operation[] operations = new Operation[MAX_OPERATIONS];
-    private final static Customer[] customers = new Customer[MAX_CUSTOMERS];
-    private final static int[] customers_operations_count = new int[MAX_CUSTOMERS];
-    private final static int[][] statement = new int[MAX_CUSTOMERS][MAX_OPERATIONS / MAX_CUSTOMERS];
-
+    private static final StorageService<Customer> customerStorageService = new StorageService<>();
+    private static final StorageService<Operation> operationStorageService = new StorageService<>();
+    private static final lOService lOService = new lOService();
+    private static final CustomerService customerService = new CustomerService(customerStorageService);
+    private static final OperationService operationService = new OperationService(operationStorageService);
+    private static final StatementService statementService = new StatementService(lOService);
 
     public static void main(String[] args) throws Exception {
-        Scanner scanner = new Scanner(System.in);
+        inputCustomer();
+        inputOperations();
 
-        inputCustomer(scanner);
-        inputOperations(scanner);
-
-
-        System.out.println(Arrays.toString(operations));
-        System.out.println(Arrays.toString(customers));
-        System.out.println(Arrays.deepToString(statement));
-        System.out.println(Arrays.toString(customers_operations_count));
+        System.out.println(Arrays.toString(customerStorageService.getStorage().toArray()));
+        System.out.println(Arrays.toString(operationStorageService.getStorage().toArray()));
+        System.out.println(Arrays.deepToString(StorageService.getStatement()));
+        System.out.println(Arrays.toString(StorageService.getCustomers_operations_count()));
     }
 
-    private static void inputCustomer(Scanner scanner) {
+    private static void inputCustomer() {
         int customersCount = 0;
 
         while (true) {
-            System.out.println("Введите имя клиента номер " + customersCount);
-            String name = scanner.nextLine();
+            lOService.printMessage("Введите имя клиента номер " + customersCount);
+            String name = lOService.readString();
 
-            customers[customersCount] = new Customer(customersCount, name);
+            customerService.AddCustomer(customersCount, name);
             customersCount++;
 
-            System.out.println("Хотите продолжить?: y/n");
-            String answer = scanner.nextLine();
+            lOService.printMessage("Хотите продолжить?: y/n");
+            String answer = lOService.readString();
 
-            if (customersCount == MAX_CUSTOMERS || answer.equals("n")) {
+            if (customersCount == StorageService.getMAX_CUSTOMERS() || answer.equals("n")) {
                 break;
             }
         }
     }
 
-    private static void inputOperations(Scanner scanner) throws Exception {
+    private static void inputOperations() throws Exception {
         int operationId = 0;
 
         while (true) {
-            System.out.println("Введите сумму транзакции номер " + operationId);
-            int sum = scanner.nextInt();
-            scanner.nextLine();
+            Object[] operationData = lOService.readData(operationId);
+            int sum = (int)operationData[0];
+            String currency = (String)operationData[1];
+            String merchant = (String)operationData[2];
+            int customerId = (int)operationData[3];
 
-            System.out.println("Введите валюту транзакции номер " + operationId);
-            String currency = scanner.nextLine();
-
-            System.out.println("Введите получателя(merchant) из транзакции номер " + operationId);
-            String merchant = scanner.nextLine();
-
-            System.out.println("Введите id клиента этой операции");
-            int customerId = scanner.nextInt();
-            scanner.nextLine();
-
-            if (!isCustomerFound(customerId)) {
-                System.out.println("Клиент с таким id не найден.");
-                System.out.println("Хотите ввести другой id?() Хотите " + "закончить добавление операций?(y/n)");
-                String answer = scanner.nextLine();
+            if (!customerService.isCustomerFound(customerId)) {
+                lOService.printMessage("Клиент с таким id не найден.");
+                lOService.printMessage("Хотите ввести другой id?() Хотите закончить добавление операций?(y/n)");
+                String answer = lOService.readString();
                 if (answer.equals("y")) {
                     break;
                 }
                 continue;
             }
 
-            tryAddOperationToStatement(customerId, operationId);
-            operations[operationId] = new Operation(operationId, sum, currency, merchant);
+            statementService.tryAddOperationToStatement(customerId, operationId);
+
+            operationService.addOperation(operationId, sum, currency, merchant);
             operationId++;
 
+            tryCheckCustomerOperation();
 
-            System.out.println("Хотите посмотреть операции клиента?: y/n");
-            String answerId = scanner.nextLine();
+            lOService.printMessage("Хотите продолжить?: y/n");
+            String answer = lOService.readString();
 
-            if (answerId.equals("y")) {
-                System.out.println("Введите id клиента: ");
-                int answer = scanner.nextInt();
-                scanner.nextLine();
-
-                if (isCustomerIdCorrect(answer)) {
-                    System.out.println(Arrays.toString(getOperations(answer)));
-                } else {
-                    System.out.println("Такого клиента не существует");
-                }
-            }
-
-            System.out.println("Хотите продолжить?: y/n");
-            String answer = scanner.nextLine();
-
-            if (operationId == MAX_OPERATIONS || answer.equals("n")) {
+            if (operationId == StorageService.getMAX_OPERATIONS() || answer.equals("n")) {
                 break;
             }
         }
     }
 
-    private static boolean isCustomerFound(int customerId) {
+    private static void tryCheckCustomerOperation() {
+        lOService.printMessage("Хотите посмотреть операции клиента?: y/n");
+        String answer = lOService.readString();
 
-        if (!isCustomerIdCorrect(customerId)) {
-            return false;
-        }
+        if (answer.equals("y")) {
+            lOService.printMessage("Введите id клиента: ");
+            int id = lOService.readInt();
 
-        for (Customer customer : customers) {
-            if (customer == null) {
-                return false;
+            if (customerService.isCustomerIdCorrect(id)) {
+                lOService.printMessage(Arrays.toString(operationService.getOperationsById(id)));
+            } else {
+                lOService.printMessage("Такого клиента не существует");
             }
-            if (customer.getId() == customerId) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static boolean isCustomerIdCorrect(int customerId) {
-        return customers.length > customerId && customers[customerId] != null;
-    }
-
-    public static Operation[] getOperations(int clientId) {
-        int length = customers_operations_count[clientId];
-        Operation[] result = new Operation[length];
-
-        for (int i = 0; i < length; i++) {
-            for (Operation operation : operations) {
-                if (operation.getId() == statement[clientId][i]) {
-                    result[i] = operation;
-                    break;
-                }
-            }
-        }
-
-        return result;
-    }
-
-    private static void tryAddOperationToStatement(int customerId, int operationId) throws Exception {
-        if (customers_operations_count[customerId] < MAX_OPERATIONS / MAX_CUSTOMERS) {
-            int operationsCountForCustomer = customers_operations_count[customerId];
-            statement[customerId][operationsCountForCustomer] = operationId;
-            customers_operations_count[customerId]++;
-            System.out.println("Операция успешно добавлена в выписку");
-        } else {
-            throw new CustomerOperationOutOfBoundException(customerId, operationId);
         }
     }
 }
