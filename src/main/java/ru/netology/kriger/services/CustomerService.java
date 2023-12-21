@@ -1,39 +1,30 @@
 package ru.netology.kriger.services;
 
-import ru.netology.kriger.Customer;
+import lombok.Data;
+import org.springframework.stereotype.Component;
+import ru.netology.kriger.model.Customer;
 
+import javax.annotation.PostConstruct;
+import java.util.ArrayList;
 import java.util.List;
 
+
+@Component
+@Data
 public class CustomerService {
-//    private final List<Customer> customers;
-    private final StorageService<Customer> customers;
-    public CustomerService(StorageService<Customer> customers) {
-        this.customers = customers;
+    private final List<Customer> storage = new ArrayList<>();
+
+    @PostConstruct
+    public void initStorage() {
+        addCustomer(0, "Spring");
+        addCustomer(1, "Boot");
     }
 
-    public void AddCustomer(int customerId, String name) {
-        customers.setElement(new Customer(customerId, name));
+    public void addCustomer(int customerId, String name) {
+        storage.add(new Customer(customerId, name));
     }
 
-    public boolean isCustomerFound(int customerId) {
-
-        if (!isCustomerIdCorrect(customerId)) {
-            return false;
-        }
-
-        for (Customer customer : customers.getStorage()) {
-            if (customer == null) {
-                return false;
-            }
-            if (customer.getId() == customerId) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public boolean isCustomerIdCorrect(int customerId) {
-        return customers.getStorage().size() > customerId && customers.getElement(customerId) != null;
+    public Customer getCustomer(int id) {
+        return storage.get(id);
     }
 }
